@@ -1,4 +1,10 @@
-import { Canvas, FabricImage, Point, Rect, filters } from "fabric";
+import {
+  Canvas,
+  FabricImage,
+  Point,
+  Rect,
+  filters
+} from "fabric";
 import {
   MAP_SIDE_DEGREE,
   MAX_ZOOM,
@@ -21,7 +27,8 @@ export const useImageEditor = () => {
    * @param canvasRef - Fabric canvas reference.
    */
   const handleLoadImage = async (imageUrl: string, canvasRef: Canvas) => {
-    if (!imageUrl || !canvasRef) throw new Error("Image URL or canvas is missing");
+    if (!imageUrl || !canvasRef)
+      throw new Error("Image URL or canvas is missing");
 
     const fabricImg = await FabricImage.fromURL(imageUrl, {
       crossOrigin: "anonymous", // Important for cross-domain image loading
@@ -32,9 +39,11 @@ export const useImageEditor = () => {
         selectable: true,
         imageUrl,
       });
+
       canvasRef.centerObject(fabricImg);
       canvasRef.add(fabricImg);
       canvasRef.setActiveObject(fabricImg);
+      canvasRef.requestRenderAll();
     }
   };
 
@@ -48,7 +57,8 @@ export const useImageEditor = () => {
     currentImageUrl: string,
     canvasRef: Canvas
   ) => {
-    if (!currentImageUrl || !canvasRef) throw new Error("Image URL or canvas is missing");
+    if (!currentImageUrl || !canvasRef)
+      throw new Error("Image URL or canvas is missing");
 
     canvasRef.getActiveObjects().forEach((obj) => {
       if (obj.get("imageUrl") === currentImageUrl) {
@@ -75,6 +85,8 @@ export const useImageEditor = () => {
     );
     canvasRef.zoomToPoint(center, newZoom);
     canvasRef.requestRenderAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (canvasRef as any).fire("zoom:changed", { zoom: newZoom });
   };
 
   /**
