@@ -2,14 +2,19 @@ import { Button, Slider, Tooltip } from "antd";
 import { useImageEditor } from "../hooks/useImageEditor";
 import { useImageEditorStore } from "../store/imageEditorStore";
 import {
+  RedoOutlined,
   RotateLeftOutlined,
   RotateRightOutlined,
+  UndoOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
 } from "@ant-design/icons";
+import { useCanvasHistory } from "../hooks/useCanvasHistory";
 
 const LeftToolBar = () => {
   const { canvasRef, setCropRec, canvasOfCropRecRef } = useImageEditorStore();
+  const { undo, canUndo, redo, canRedo } = useCanvasHistory(canvasRef!);
+
   const {
     handleZoomIn,
     handleZoomOut,
@@ -30,6 +35,22 @@ const LeftToolBar = () => {
 
   return (
     <div className="flex flex-wrap bg-ColorToken-secondaryToken-300">
+      <Tooltip title="Undo">
+        <Button
+          icon={<UndoOutlined />}
+          onClick={() => undo()}
+          disabled={!canUndo}
+        ></Button>
+      </Tooltip>
+
+      <Tooltip title="Redo">
+        <Button
+          icon={<RedoOutlined />}
+          onClick={() => redo()}
+          disabled={!canRedo}
+        ></Button>
+      </Tooltip>
+
       <Tooltip title="Zoom In">
         <Button
           icon={<ZoomInOutlined />}
@@ -100,9 +121,7 @@ const LeftToolBar = () => {
             max={9}
             step={2} // 1,3,5,7,9
             defaultValue={1}
-            onChange={(val) =>
-              applyAveraging(canvasRef, val as number)
-            }
+            onChange={(val) => applyAveraging(canvasRef, val as number)}
           />
         </div>
 

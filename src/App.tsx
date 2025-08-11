@@ -4,9 +4,11 @@ import Sider from 'antd/es/layout/Sider';
 import LeftToolBar from './components/LeftToolBar';
 import ImageSelector from './components/ImageSelector';
 import ImageEditor from './components/ImageEditor';
+// import FabricEditor from './components/FabricEditor';
 
 const App = () => {
     return (
+        // <FabricEditor/>
         <Layout className="h-[80vh] w-full overflow-hidden bg-red-400">
             <Layout>
                 <Header className="bg-yellow-400">Header</Header>
