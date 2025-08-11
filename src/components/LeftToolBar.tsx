@@ -1,4 +1,4 @@
-import { Button, Tooltip } from "antd";
+import { Button, Slider, Tooltip } from "antd";
 import { useImageEditor } from "../hooks/useImageEditor";
 import { useImageEditorStore } from "../store/imageEditorStore";
 import {
@@ -16,9 +16,14 @@ const LeftToolBar = () => {
     handleRotateLeft,
     handleRotateRight,
     startCropMode,
-    downloadCroppedImage,
+    downloadCurrentCanvas,
     applyRealCropToActiveImage,
     stopCropMode,
+    applyBrightness,
+    applyAveraging,
+    applyNoise,
+    applyContrast,
+    applyGamma,
   } = useImageEditor();
 
   if (!canvasRef) return null;
@@ -74,9 +79,65 @@ const LeftToolBar = () => {
           Apply Real Crop (clip)
         </Button>
 
-        <Button onClick={() => downloadCroppedImage(canvasRef)}>
+        <Button onClick={() => downloadCurrentCanvas(canvasRef)}>
           Download
         </Button>
+
+        <div>
+          <p className="text-white">brightness</p>
+          <Slider
+            min={-100}
+            max={100}
+            defaultValue={0}
+            onChange={(value) => applyBrightness(canvasRef, value)}
+          />
+        </div>
+
+        <div>
+          <p className="text-white">averaging</p>
+          <Slider
+            min={1}
+            max={9}
+            step={2} // 1,3,5,7,9
+            defaultValue={1}
+            onChange={(val) =>
+              applyAveraging(canvasRef, val as number)
+            }
+          />
+        </div>
+
+        <div>
+          <p className="text-white">Noise</p>
+          <Slider
+            min={-100}
+            max={100}
+            defaultValue={0}
+            step={1}
+            onChange={(val) => applyNoise(canvasRef, val)}
+          />
+        </div>
+
+        <div>
+          <p className="text-white">Contrast</p>
+          <Slider
+            min={-100}
+            max={100}
+            step={1}
+            defaultValue={0}
+            onChange={(val) => applyContrast(canvasRef, val)}
+          />
+        </div>
+
+        <div>
+          <p className="text-white">Gamma</p>
+          <Slider
+            min={0.2}
+            max={2.2}
+            step={0.1}
+            defaultValue={1}
+            onChange={(val) => applyGamma(canvasRef, val)}
+          />
+        </div>
       </div>
     </div>
   );

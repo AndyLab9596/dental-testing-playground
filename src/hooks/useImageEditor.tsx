@@ -1,4 +1,4 @@
-import { Canvas, FabricImage, Point, Rect } from "fabric";
+import { Canvas, FabricImage, Point, Rect, filters } from "fabric";
 import {
   MAP_SIDE_DEGREE,
   MAX_ZOOM,
@@ -20,7 +20,7 @@ export const useImageEditor = () => {
     if (fabricImg) {
       fabricImg.set({
         selectable: true,
-        currentImageUrl: imageUrl,
+        imageUrl,
       });
       canvasRef.centerObject(fabricImg);
       canvasRef.add(fabricImg);
@@ -34,7 +34,7 @@ export const useImageEditor = () => {
   ) => {
     if (!currentImageUrl || !canvasRef) throw new Error();
     canvasRef.getActiveObjects().forEach((obj) => {
-      if (obj.get("currentImageUrl") === currentImageUrl) {
+      if (obj.get("imageUrl") === currentImageUrl) {
         canvasRef.remove(obj);
       }
     });
@@ -164,13 +164,12 @@ export const useImageEditor = () => {
     canvasRef.remove(imgObj);
 
     if (canvasOfCropRecRef) {
-      canvasRef.remove(canvasOfCropRecRef);
-      setCropRec(null);
+      stopCropMode(canvasRef, canvasOfCropRecRef, setCropRec);
     }
     canvasRef.renderAll();
   };
 
-  const downloadCroppedImage = (canvasRef: Canvas) => {
+  const downloadCurrentCanvas = (canvasRef: Canvas) => {
     const dataUrl = canvasRef.toDataURL();
     const a = document.createElement("a");
     a.href = dataUrl;
@@ -178,6 +177,162 @@ export const useImageEditor = () => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  /*
+    For slider: min = -100, max = 100, defaultValue = 0
+  */
+  const applyBrightness = (canvas: Canvas, sliderValue: number) => {
+    const value = Math.max(-100, Math.min(100, sliderValue)) / 100;
+
+    const activeObject = canvas.getActiveObject();
+    console.log(activeObject);
+    if (!activeObject || activeObject.type !== "image") return;
+    const img = activeObject as FabricImage;
+
+    img.filters = img.filters || [];
+    const idx = img.filters.findIndex(
+      (f) => !!f && f.type === filters.Brightness.type
+    );
+
+    if (value === 0) {
+      if (idx !== -1) {
+        img.filters.splice(idx, 1);
+      }
+    } else {
+      if (idx === -1) {
+        const bf = new filters.Brightness({ brightness: value });
+        img.filters.push(bf);
+      } else {
+        const bf = img.filters[idx] as filters.Brightness;
+        bf.brightness = value;
+      }
+    }
+    img.applyFilters();
+    canvas.requestRenderAll();
+  };
+
+  /**
+   * Apply averaging (box blur) by kernel size.
+   * sliderSize: integer >= 1. We'll coerce to an odd integer (1,3,5,7,...).
+   */
+  const applyAveraging = (canvas: Canvas, sliderSize: number) => {
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject || activeObject.type !== "image") return;
+    const img = activeObject as FabricImage;
+
+    img.filters = img.filters || [];
+    const convIndex = img.filters.findIndex(
+      (f) => !!f && f.type === filters.Convolute.type
+    );
+
+    // ensure integer >=1
+    let k = Math.max(1, Math.round(sliderSize));
+    // make it odd: 1,3,5,...
+    if (k % 2 === 0) k += 1;
+
+    // kernel size 1 => no blur => remove filter if exists
+    if (k === 1) {
+      if (convIndex !== -1) {
+        img.filters.splice(convIndex, 1);
+        img.applyFilters();
+        canvas.requestRenderAll();
+      }
+      return;
+    }
+
+    // build normalized box kernel of size k x k
+    const cell = 1 / (k * k);
+    const matrix: number[] = new Array(k * k).fill(cell);
+
+    if (convIndex === -1) {
+      img.filters.push(new filters.Convolute({ matrix }));
+    } else {
+      // update existing filter's matrix
+      (img.filters[convIndex] as filters.Convolute).matrix = matrix;
+    }
+
+    img.applyFilters();
+    canvas.requestRenderAll();
+  };
+
+  const applyNoise = (canvas: Canvas, sliderValue: number) => {
+    const value = Math.max(0, Math.min(1000, sliderValue)); // Fabric noise dùng 0 -> 1000
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject || activeObject.type !== "image") return;
+    const img = activeObject as FabricImage;
+
+    img.filters = img.filters || [];
+    const idx = img.filters.findIndex(
+      (f) => !!f && f.type === filters.Noise.type
+    );
+
+    if (value === 0) {
+      if (idx !== -1) img.filters.splice(idx, 1);
+    } else {
+      if (idx === -1) {
+        img.filters.push(new filters.Noise({ noise: value }));
+      } else {
+        (img.filters[idx] as filters.Noise).noise = value;
+      }
+    }
+    img.applyFilters();
+    canvas.requestRenderAll();
+  };
+
+  const applyContrast = (canvas: Canvas, sliderValue: number) => {
+    const value = Math.max(-100, Math.min(100, sliderValue)) / 100; // -1 -> 1
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject || activeObject.type !== "image") return;
+    const img = activeObject as FabricImage;
+
+    img.filters = img.filters || [];
+    const idx = img.filters.findIndex(
+      (f) => !!f && f.type === filters.Contrast.type
+    );
+
+    if (value === 0) {
+      if (idx !== -1) img.filters.splice(idx, 1);
+    } else {
+      if (idx === -1) {
+        img.filters.push(new filters.Contrast({ contrast: value }));
+      } else {
+        (img.filters[idx] as filters.Contrast).contrast = value;
+      }
+    }
+    img.applyFilters();
+    canvas.requestRenderAll();
+  };
+
+  const applyGamma = (canvas: Canvas, sliderValue: number) => {
+    // gamma expects array [r, g, b] with each > 0, default [1, 1, 1]
+    const gammaVal = Math.max(0.1, sliderValue); // tránh 0
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject || activeObject.type !== "image") return;
+    const img = activeObject as FabricImage;
+
+    img.filters = img.filters || [];
+    const idx = img.filters.findIndex(
+      (f) => !!f && f.type === filters.Gamma.type
+    );
+
+    if (gammaVal === 1) {
+      if (idx !== -1) img.filters.splice(idx, 1);
+    } else {
+      if (idx === -1) {
+        img.filters.push(
+          new filters.Gamma({ gamma: [gammaVal, gammaVal, gammaVal] })
+        );
+      } else {
+        (img.filters[idx] as filters.Gamma).gamma = [
+          gammaVal,
+          gammaVal,
+          gammaVal,
+        ];
+      }
+    }
+    img.applyFilters();
+    canvas.requestRenderAll();
   };
 
   return {
@@ -190,7 +345,13 @@ export const useImageEditor = () => {
 
     startCropMode,
     stopCropMode,
-    downloadCroppedImage,
+    downloadCurrentCanvas,
     applyRealCropToActiveImage,
+
+    applyBrightness,
+    applyAveraging,
+    applyNoise,
+    applyContrast,
+    applyGamma,
   };
 };
